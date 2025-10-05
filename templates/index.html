@@ -1,0 +1,111 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bro-Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="login-container">
+            <div class="logo">
+                <h1>Bro-Chat</h1>
+                <p>Connect with friends and colleagues</p>
+            </div>
+            <div class="login-form">
+                <h2>Join a Chat Room</h2>
+                <div class="input-group">
+                    <input type="text" id="username" placeholder="Your Name" required>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="room-code" placeholder="Room Code" required>
+                </div>
+                <div class="input-group room-name-input" style="display: none;">
+                    <input type="text" id="room-name" placeholder="Room Name (optional)">
+                </div>
+                <div class="button-group">
+                    <button id="join-btn">Join Room</button>
+                    <button id="create-btn">Create Room</button>
+                </div>
+                <div id="error-message" class="error"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const joinBtn = document.getElementById('join-btn');
+        const createBtn = document.getElementById('create-btn');
+        const roomNameInput = document.querySelector('.room-name-input');
+        
+        joinBtn.addEventListener('click', function() {
+            roomNameInput.style.display = 'none';
+            joinRoom(false);
+        });
+
+        createBtn.addEventListener('click', function() {
+            roomNameInput.style.display = 'block';
+            // Focus on the room name input when creating a room
+            document.getElementById('room-name').focus();
+            // If the room name is empty, create room with the room code
+            joinRoom(true);
+        });
+
+        function joinRoom(createNew) {
+            const username = document.getElementById('username').value.trim();
+            const room = document.getElementById('room-code').value.trim();
+            const roomName = document.getElementById('room-name').value.trim();
+            const errorElement = document.getElementById('error-message');
+            
+            if (!username || !room) {
+                errorElement.textContent = 'Username and room code are required';
+                return;
+            }
+            
+            // Build form data
+            let formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('room', room);
+            formData.append('create_new', createNew);
+            
+            // Add room name if creating a new room
+            if (createNew && roomName) {
+                formData.append('room_name', roomName);
+            }
+            
+            // Make AJAX request to join
+            fetch('/join', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    errorElement.textContent = data.error || 'Failed to join room';
+                }
+            })
+            .catch(error => {
+                errorElement.textContent = 'An error occurred. Please try again.';
+                console.error('Error:', error);
+            });
+        }
+        
+        // Show room name input when clicking create room and hide when clicking join room
+        createBtn.addEventListener('mousedown', function() {
+            roomNameInput.style.display = 'block';
+        });
+        
+        joinBtn.addEventListener('mousedown', function() {
+            roomNameInput.style.display = 'none';
+        });
+    </script>
+</body>
+</html>

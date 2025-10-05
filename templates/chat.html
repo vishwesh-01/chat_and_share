@@ -1,0 +1,699 @@
+<!-- templates/chat.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlaskChat - {{ room_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-sidebar">
+            <div class="room-info">
+                <div class="room-name-container">
+                    <h2 id="room-name-display">{{ room_name }}</h2>
+                    <button id="edit-room-name" title="Edit Room Name">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+                <div class="room-code-display">
+                    <span>Room Code:</span>
+                    <span id="room-code">{{ room }}</span>
+                    <button id="copy-room-code" title="Copy Room Code">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="online-users">
+                <h3>Online Users</h3>
+                <ul id="users-list"></ul>
+            </div>
+            <div class="room-features">
+                <div class="theme-toggle">
+                    <span>Theme:</span>
+                    <button id="light-theme" class="theme-btn active" title="Light Theme">
+                        <i class="fas fa-sun"></i>
+                    </button>
+                    <button id="dark-theme" class="theme-btn" title="Dark Theme">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+                <div class="notification-toggle">
+                    <label for="notification-toggle">
+                        <input type="checkbox" id="notification-toggle" checked>
+                        <span>Sound Notifications</span>
+                    </label>
+                </div>
+            </div>
+            <div class="exit-btn-container">
+                <button id="exit-btn">Exit Chat</button>
+            </div>
+        </div>
+        <div class="chat-main">
+            <div class="chat-header">
+                <button class="sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h2>{{ room_name }} - Chat</h2>
+                <div class="chat-header-actions">
+                    <button id="clear-chat" title="Clear Chat">
+                        <i class="fas fa-broom"></i>
+                    </button>
+                    <span>Logged in as: <strong>{{ username }}</strong></span>
+                </div>
+            </div>
+            <div class="messages-container" id="messages"></div>
+            <div class="emoji-picker" id="emoji-picker">
+                <div class="emoji-container">
+                    <!-- Common emojis -->
+                    <span class="emoji" data-emoji="😊">😊</span>
+                    <span class="emoji" data-emoji="😂">😂</span>
+                    <span class="emoji" data-emoji="👍">👍</span>
+                    <span class="emoji" data-emoji="❤️">❤️</span>
+                    <span class="emoji" data-emoji="🎉">🎉</span>
+                    <span class="emoji" data-emoji="🔥">🔥</span>
+                    <span class="emoji" data-emoji="👋">👋</span>
+                    <span class="emoji" data-emoji="🤔">🤔</span>
+                    <span class="emoji" data-emoji="😎">😎</span>
+                    <span class="emoji" data-emoji="🙌">🙌</span>
+                    <span class="emoji" data-emoji="😍">😍</span>
+                    <span class="emoji" data-emoji="🤣">🤣</span>
+                    <span class="emoji" data-emoji="😅">😅</span>
+                    <span class="emoji" data-emoji="👏">👏</span>
+                    <span class="emoji" data-emoji="🥳">🥳</span>
+                    <span class="emoji" data-emoji="👀">👀</span>
+                    <span class="emoji" data-emoji="🙏">🙏</span>
+                    <span class="emoji" data-emoji="🤝">🤝</span>
+                </div>
+            </div>
+            <div class="message-form">
+                <div class="file-preview" id="file-preview">
+                    <div class="preview-content" id="preview-content"></div>
+                    <button class="remove-file" id="remove-file">&times;</button>
+                </div>
+                <div class="message-input-container">
+                    <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+                    <div class="message-actions">
+                        <button id="emoji-btn" type="button" title="Insert Emoji">
+                            <i class="fas fa-smile"></i>
+                        </button>
+                        <label for="file-input" class="file-label">
+                            <i class="fas fa-paperclip"></i>
+                        </label>
+                        <input type="file" id="file-input" style="display: none;">
+                        <button id="send-btn" type="button">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Room name edit modal -->
+    <div class="modal" id="room-name-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Room Name</h3>
+                <button class="close-modal" type="button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <input type="text" id="new-room-name" placeholder="Enter new room name">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-room-name" type="button">Cancel</button>
+                <button id="save-room-name" type="button">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification sound -->
+    <audio id="notification-sound" src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3?filename=notification-sound-7062.mp3" preload="auto"></audio>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize socket connection
+            const socket = io();
+            const username = "{{ username }}";
+            const room = "{{ room }}";
+            let currentFile = null;
+            let isDarkTheme = false;
+
+            // DOM elements
+            const messagesContainer = document.getElementById('messages');
+            const messageInput = document.getElementById('message-input');
+            const sendBtn = document.getElementById('send-btn');
+            const exitBtn = document.getElementById('exit-btn');
+            const usersList = document.getElementById('users-list');
+            const fileInput = document.getElementById('file-input');
+            const filePreview = document.getElementById('file-preview');
+            const previewContent = document.getElementById('preview-content');
+            const removeFileBtn = document.getElementById('remove-file');
+            const copyRoomCodeBtn = document.getElementById('copy-room-code');
+            const emojiBtn = document.getElementById('emoji-btn');
+            const emojiPicker = document.getElementById('emoji-picker');
+            const clearChatBtn = document.getElementById('clear-chat');
+            const notificationToggle = document.getElementById('notification-toggle');
+            const notificationSound = document.getElementById('notification-sound');
+            const lightThemeBtn = document.getElementById('light-theme');
+            const darkThemeBtn = document.getElementById('dark-theme');
+            const editRoomNameBtn = document.getElementById('edit-room-name');
+            const roomNameModal = document.getElementById('room-name-modal');
+            const newRoomNameInput = document.getElementById('new-room-name');
+            const saveRoomNameBtn = document.getElementById('save-room-name');
+            const cancelRoomNameBtn = document.getElementById('cancel-room-name');
+            const closeModalBtn = document.querySelector('.close-modal');
+            const roomNameDisplay = document.getElementById('room-name-display');
+            const sidebarToggleBtn = document.querySelector('.sidebar-toggle');
+
+            // Hide file preview initially
+            filePreview.style.display = 'none';
+            emojiPicker.style.display = 'none';
+
+            // Join room when page loads
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                socket.emit('join_room', {room: room, username: username});
+            });
+
+            // Handle receiving message history
+            socket.on('message_history', (data) => {
+                console.log('Received message history:', data);
+                data.messages.forEach(msg => {
+                    displayMessage(msg);
+                });
+                scrollToBottom();
+            });
+
+            // Handle new message
+            socket.on('message', (data) => {
+                console.log('Received message:', data);
+                const isMyMessage = data.username === username;
+                displayMessage(data);
+                scrollToBottom();
+                
+                // Play notification sound if enabled and message is not from current user
+                if (notificationToggle.checked && !isMyMessage) {
+                    notificationSound.play().catch(err => console.log('Failed to play notification sound:', err));
+                }
+            });
+
+            // Handle user join notifications
+            socket.on('user_join', (data) => {
+                console.log('User joined:', data);
+                const joinMessage = {
+                    username: 'System',
+                    message: `${data.username} has joined the chat`,
+                    timestamp: Date.now() / 1000,
+                    systemMessage: true
+                };
+                
+                // Update room name if available
+                if (data.room_name) {
+                    document.title = `FlaskChat - ${data.room_name}`;
+                    roomNameDisplay.textContent = data.room_name;
+                    document.querySelector('.chat-header h2').textContent = `${data.room_name} - Chat`;
+                }
+                
+                displayMessage(joinMessage);
+                updateUsersList(data.users);
+                scrollToBottom();
+            });
+
+            // Handle user leave notifications
+            socket.on('user_leave', (data) => {
+                console.log('User left:', data);
+                const leaveMessage = {
+                    username: 'System',
+                    message: `${data.username} has left the chat`,
+                    timestamp: Date.now() / 1000,
+                    systemMessage: true
+                };
+                displayMessage(leaveMessage);
+                updateUsersList(data.users);
+                scrollToBottom();
+            });
+            
+            // Handle room updates
+            socket.on('room_updated', (data) => {
+                console.log('Room updated:', data);
+                if (data.room_name) {
+                    document.title = `FlaskChat - ${data.room_name}`;
+                    roomNameDisplay.textContent = data.room_name;
+                    document.querySelector('.chat-header h2').textContent = `${data.room_name} - Chat`;
+                    
+                    const updateMessage = {
+                        username: 'System',
+                        message: `Room name updated to "${data.room_name}"`,
+                        timestamp: Date.now() / 1000,
+                        systemMessage: true
+                    };
+                    displayMessage(updateMessage);
+                }
+            });
+            
+            // Handle disconnect and reconnect
+            socket.on('disconnect', () => {
+                console.log('Disconnected from server');
+                const reconnectMessage = {
+                    username: 'System',
+                    message: 'Connection lost. Attempting to reconnect...',
+                    timestamp: Date.now() / 1000,
+                    systemMessage: true
+                };
+                displayMessage(reconnectMessage);
+            });
+            
+            socket.io.on('reconnect', () => {
+                console.log('Reconnected to server');
+                const reconnectMessage = {
+                    username: 'System',
+                    message: 'Reconnected to server!',
+                    timestamp: Date.now() / 1000,
+                    systemMessage: true
+                };
+                displayMessage(reconnectMessage);
+                // Rejoin room after reconnect
+                socket.emit('join_room', {room: room, username: username});
+            });
+
+            // Send message
+            function sendMessage() {
+                const messageText = messageInput.value.trim();
+                
+                if (!messageText && !currentFile) return;
+                
+                console.log('Sending message:', messageText);
+                
+                try {
+                    const messageData = {
+                        message: messageText,
+                        file: currentFile
+                    };
+                    
+                    socket.emit('message', messageData);
+                    messageInput.value = '';
+                    
+                    // Clear file preview
+                    if (currentFile) {
+                        currentFile = null;
+                        filePreview.style.display = 'none';
+                        previewContent.innerHTML = '';
+                    }
+                    
+                    // Close emoji picker
+                    emojiPicker.style.display = 'none';
+                } catch (error) {
+                    console.error('Error sending message:', error);
+                    showNotification('Failed to send message. Please try again.');
+                }
+            }
+
+            // Display message in chat
+            function displayMessage(data) {
+                try {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message animate__animated animate__fadeIn';
+                    
+                    if (data.systemMessage) {
+                        messageDiv.classList.add('system-message');
+                    } else if (data.username === username) {
+                        messageDiv.classList.add('my-message');
+                    } else {
+                        messageDiv.classList.add('other-message');
+                    }
+                    
+                    const time = new Date(data.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    let messageContent = '';
+                    
+                    if (!data.systemMessage) {
+                        messageContent += `<div class="message-header">
+                            <span class="message-user">${data.username}</span>
+                            <span class="message-time">${time}</span>
+                        </div>`;
+                    }
+                    
+                    messageContent += '<div class="message-body">';
+                    
+                    if (data.message) {
+                        // Convert URLs to clickable links
+                        const urlRegex = /(https?:\/\/[^\s]+)/g;
+                        const messageWithLinks = data.message.replace(urlRegex, url => {
+                            return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+                        });
+                        
+                        messageContent += `<p>${messageWithLinks}</p>`;
+                    }
+                    
+                    if (data.file) {
+                        if (data.file.file_type === 'image') {
+                            messageContent += `
+                                <div class="file-attachment image-attachment">
+                                    <a href="${data.file.file_url}" target="_blank">
+                                        <img src="${data.file.file_url}" alt="${data.file.original_name}">
+                                    </a>
+                                    <div class="file-name">${data.file.original_name}</div>
+                                </div>
+                            `;
+                        } else {
+                            messageContent += `
+                                <div class="file-attachment">
+                                    <a href="${data.file.file_url}" target="_blank" class="file-link">
+                                        <i class="fas fa-file-alt file-icon"></i>
+                                        <span>${data.file.original_name}</span>
+                                    </a>
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    messageContent += '</div>';
+                    
+                    if (!data.systemMessage) {
+                        messageContent += `
+                            <div class="message-actions-dropdown">
+                                <button class="message-action-btn">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="message-actions-menu">
+                                    <button class="copy-message-btn">
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                    <button class="reply-message-btn">
+                                        <i class="fas fa-reply"></i> Reply
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    messageDiv.innerHTML = messageContent;
+                    messagesContainer.appendChild(messageDiv);
+                    
+                    // Add event listeners to the message actions
+                    if (!data.systemMessage) {
+                        const actionBtn = messageDiv.querySelector('.message-action-btn');
+                        const actionsMenu = messageDiv.querySelector('.message-actions-menu');
+                        const copyBtn = messageDiv.querySelector('.copy-message-btn');
+                        const replyBtn = messageDiv.querySelector('.reply-message-btn');
+                        
+                        if (actionBtn) {
+                            actionBtn.addEventListener('click', () => {
+                                actionsMenu.classList.toggle('show');
+                            });
+                        }
+                        
+                        if (copyBtn) {
+                            copyBtn.addEventListener('click', () => {
+                                let textToCopy = data.message || '';
+                                if (data.file) {
+                                    textToCopy += textToCopy ? '\n' + data.file.file_url : data.file.file_url;
+                                }
+                                navigator.clipboard.writeText(textToCopy).then(() => {
+                                    showNotification('Message copied to clipboard!');
+                                }).catch(err => {
+                                    console.error('Failed to copy text:', err);
+                                    showNotification('Failed to copy message');
+                                });
+                                actionsMenu.classList.remove('show');
+                            });
+                        }
+                        
+                        if (replyBtn) {
+                            replyBtn.addEventListener('click', () => {
+                                let replyText = `@${data.username}: `;
+                                messageInput.value = replyText;
+                                messageInput.focus();
+                                actionsMenu.classList.remove('show');
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error displaying message:', error);
+                }
+            }
+
+            // Update users list
+            function updateUsersList(users) {
+                usersList.innerHTML = '';
+                users.forEach(user => {
+                    const userItem = document.createElement('li');
+                    userItem.className = 'user-item';
+                    
+                    // Add a special class if this is the current user
+                    if (user === username) {
+                        userItem.classList.add('current-user');
+                    }
+                    
+                    userItem.innerHTML = `
+                        <span class="user-status online"></span>
+                        <span class="user-name">${user}</span>
+                        ${user === username ? '<span class="user-tag">(you)</span>' : ''}
+                    `;
+                    usersList.appendChild(userItem);
+                });
+            }
+
+            // Scroll messages container to bottom
+            function scrollToBottom() {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+
+            // Show notification
+            function showNotification(message) {
+                const notification = document.createElement('div');
+                notification.className = 'notification animate__animated animate__fadeIn';
+                notification.textContent = message;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.classList.remove('animate__fadeIn');
+                    notification.classList.add('animate__fadeOut');
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 300);
+                }, 2000);
+            }
+
+            // Update room name
+            function updateRoomName() {
+                const newName = newRoomNameInput.value.trim();
+                if (!newName) return;
+                
+                socket.emit('update_room_info', {
+                    room_name: newName
+                });
+                
+                roomNameModal.style.display = 'none';
+            }
+
+            // Toggle theme
+            function toggleTheme(isDark) {
+                document.body.classList.toggle('dark-theme', isDark);
+                isDarkTheme = isDark;
+                
+                // Update theme buttons
+                lightThemeBtn.classList.toggle('active', !isDark);
+                darkThemeBtn.classList.toggle('active', isDark);
+                
+                // Save theme preference
+                localStorage.setItem('darkTheme', isDark);
+            }
+
+            // Load saved theme
+            if (localStorage.getItem('darkTheme') === 'true') {
+                toggleTheme(true);
+            }
+
+            // Close all dropdown menus
+            function closeAllDropdowns() {
+                document.querySelectorAll('.message-actions-menu.show').forEach(menu => {
+                    menu.classList.remove('show');
+                });
+                emojiPicker.style.display = 'none';
+            }
+
+            // Event listeners
+            sendBtn.addEventListener('click', sendMessage);
+
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            exitBtn.addEventListener('click', () => {
+                socket.emit('leave_room');
+                window.location.href = '/';
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const maxSize = 48 * 1024 * 1024; // 16MB
+                if (file.size > maxSize) {
+                    showNotification('File too large! Maximum size is 48MB.');
+                    return;
+                }
+                
+                // Upload file
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        currentFile = data;
+                        
+                        // Show preview
+                        filePreview.style.display = 'flex';
+                        
+                        if (data.file_type === 'image') {
+                            previewContent.innerHTML = `
+                                <div class="preview-image">
+                                    <img src="${data.file_url}" alt="${data.original_name}">
+                                    <span>${data.original_name}</span>
+                                </div>
+                            `;
+                        } else {
+                            previewContent.innerHTML = `
+                                <div class="preview-file">
+                                    <i class="fas fa-file-alt"></i>
+                                    <span>${data.original_name}</span>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        showNotification(data.error || 'Failed to upload file');
+                    }
+                })
+                .catch(error => {
+                    showNotification('An error occurred while uploading');
+                    console.error('Error:', error);
+                });
+            });
+
+            removeFileBtn.addEventListener('click', () => {
+                currentFile = null;
+                filePreview.style.display = 'none';
+                previewContent.innerHTML = '';
+                fileInput.value = '';
+            });
+
+            copyRoomCodeBtn.addEventListener('click', () => {
+                const roomCode = document.getElementById('room-code').textContent;
+                navigator.clipboard.writeText(roomCode)
+                    .then(() => {
+                        showNotification('Room code copied to clipboard!');
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy room code:', err);
+                        showNotification('Failed to copy room code');
+                    });
+            });
+
+            emojiBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
+            });
+
+            // Close emoji picker when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!emojiBtn.contains(e.target) && !emojiPicker.contains(e.target)) {
+                    emojiPicker.style.display = 'none';
+                }
+                
+                // Close message action menus when clicking elsewhere
+                if (!e.target.closest('.message-actions-dropdown')) {
+                    document.querySelectorAll('.message-actions-menu.show').forEach(menu => {
+                        menu.classList.remove('show');
+                    });
+                }
+            });
+
+            // Improve emoji selection
+            document.querySelectorAll('.emoji').forEach(emoji => {
+                emoji.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const emojiChar = emoji.dataset.emoji;
+                    messageInput.value += emojiChar;
+                    messageInput.focus();
+                    emojiPicker.style.display = 'none';
+                    
+                    // Trigger input event to update any listeners
+                    const event = new Event('input', { bubbles: true });
+                    messageInput.dispatchEvent(event);
+                });
+            });
+
+            clearChatBtn.addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear the chat? This will only affect your view.')) {
+                    messagesContainer.innerHTML = '';
+                }
+            });
+
+            // Theme toggle buttons
+            lightThemeBtn.addEventListener('click', () => toggleTheme(false));
+            darkThemeBtn.addEventListener('click', () => toggleTheme(true));
+
+            // Room name edit modal
+            editRoomNameBtn.addEventListener('click', () => {
+                newRoomNameInput.value = roomNameDisplay.textContent;
+                roomNameModal.style.display = 'flex';
+                newRoomNameInput.focus();
+            });
+
+            closeModalBtn.addEventListener('click', () => {
+                roomNameModal.style.display = 'none';
+            });
+
+            cancelRoomNameBtn.addEventListener('click', () => {
+                roomNameModal.style.display = 'none';
+            });
+
+            saveRoomNameBtn.addEventListener('click', updateRoomName);
+
+            newRoomNameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    updateRoomName();
+                }
+            });
+
+            // Sidebar toggle
+            sidebarToggleBtn.addEventListener('click', () => {
+                document.querySelector('.chat-container').classList.toggle('sidebar-open');
+            });
+
+            // Close modal when clicking outside
+            window.addEventListener('click', (e) => {
+                if (e.target === roomNameModal) {
+                    roomNameModal.style.display = 'none';
+                }
+            });
+
+            // Handle window beforeunload to leave room properly
+            window.addEventListener('beforeunload', () => {
+                socket.emit('leave_room');
+            });
+
+            // Initial scroll to bottom
+            scrollToBottom();
+        });
+    </script>
+</body>
+</html>
